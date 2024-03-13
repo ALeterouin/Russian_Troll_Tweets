@@ -1,5 +1,6 @@
 import csv
-import ast
+from datetime import datetime
+import json
 
 # Mappage entre les colonnes des deux bases de données
 mapping = {
@@ -23,13 +24,8 @@ mapping = {
 
 # Utilisez ce mapping dans la fonction corriger_ligne
 def corriger_ligne(ligne, mapping):
-    # Correction des valeurs de colonnes spécifiques
-    # Ajoutez votre logique de correction ici
-    ligne["hashtags"] = ast.literal_eval(ligne["hashtags"]) if ligne["hashtags"] else []
-    ligne["mentions"] = ast.literal_eval(ligne["mentions"]) if ligne["mentions"] else []
-    ligne["expanded_urls"] = ast.literal_eval(ligne["expanded_urls"]) if ligne["expanded_urls"] else []
-
-    # Retourne la ligne corrigée
+    # Votre logique de correction ici
+    # Par exemple, pour l'exemple donné, la ligne n'a pas besoin d'être modifiée
     return ligne
 
 # Chemin du fichier d'entrée
@@ -49,14 +45,10 @@ with open(input_file_path, 'r', encoding='utf-8') as input_file:
     # Ouvrir le fichier de sortie en mode écriture
     with open(output_file_path, 'w', newline='', encoding='utf-8') as output_file:
         # Créer un écrivain CSV
-        writer = csv.writer(output_file, quotechar='"', quoting=csv.QUOTE_NONNUMERIC)
+        writer = csv.writer(output_file)
 
         # Écrire les en-têtes dans le fichier de sortie
         writer.writerow(list(mapping.values()))
-
-        # Variables pour garder une trace des lignes précédentes
-        prev_line = None
-        current_line = None
 
         # Variable pour suivre le nombre de lignes
         line_count = 0
@@ -69,10 +61,7 @@ with open(input_file_path, 'r', encoding='utf-8') as input_file:
 
             # Vérifier si la ligne contient un retour à la ligne
             if any('\n' in col for col in line):
-                # Ignorer la ligne actuelle et la ligne précédente
-                prev_line = None
-                current_line = None
-                continue
+                continue  # Ignorer la ligne si elle contient un retour à la ligne
 
             # Vérifier si le nombre de colonnes est égal au nombre d'en-têtes
             if len(line) == len(headers):
@@ -81,12 +70,22 @@ with open(input_file_path, 'r', encoding='utf-8') as input_file:
 
                 # Correction des erreurs entre les bases de données
                 ligne_corrigee = corriger_ligne(dict(zip(headers, line)), mapping)
-                ligne_corrigee = [str(ligne_corrigee[colonne]) for colonne in mapping.values()]
 
-                # Écrire la ligne dans le fichier de sortie
-                writer.writerow(ligne_corrigee)
+                # Convertir chaque valeur de la ligne corrigée en fonction de son type
+                ligne_convertie = []
+                for colonne in mapping.values():
+                    valeur = ligne_corrigee[colonne]
+                    if isinstance(valeur, (list, dict)):  # Convertir les listes et les dictionnaires en chaînes JSON
+                        valeur = json.dumps(valeur, ensure_ascii=False)
+                    elif isinstance(valeur, datetime):  # Convertir les objets datetime en chaînes
+                        valeur = valeur.strftime("%Y-%m-%d %H:%M:%S")
+
+                    ligne_convertie.append(valeur)
+
+                # Écrire la ligne convertie dans le fichier de sortie
+                writer.writerow(ligne_convertie)
 
                 # Mettre à jour le nombre de lignes
                 line_count += 1
 
-print("Filtrage, ajout de guillemets, correction et écriture des lignes corrigées terminés.")
+print("Filtrage, correction et écriture des lignes corrigées dans le fichier CSV terminés.")
